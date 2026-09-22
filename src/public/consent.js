@@ -1,8 +1,21 @@
 (() => {
-  const KEY = 'netthier_external_services';
+  const MAP_KEY = 'netthier_map_services';
+  const ANALYTICS_KEY = 'netthier_analytics';
+  const CHOICE_KEY = 'netthier_consent_choice';
+  const LEGACY_KEY = 'netthier_external_services';
   const MAX_AGE = 60 * 60 * 24 * 180;
   const config = window.netthierConsentConfig || {};
-  const hasConsent = () => document.cookie.split('; ').some((entry) => entry === `${KEY}=granted`);
+  const hasCookie = (key, value = 'granted') => document.cookie.split('; ').some((entry) => entry === `${key}=${value}`);
+  const hasMapConsent = () => hasCookie(MAP_KEY) || hasCookie(LEGACY_KEY);
+  const hasAnalyticsConsent = () => hasCookie(ANALYTICS_KEY) || hasCookie(LEGACY_KEY);
+
+  function setCookie(key, value) {
+    document.cookie = `${key}=${value}; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax`;
+  }
+
+  function deleteCookie(key) {
+    document.cookie = `${key}=; Max-Age=0; Path=/; SameSite=Lax`;
+  }
 
   function loadStyle(href) {
     const link = document.createElement('link');
@@ -22,21 +35,42 @@
     });
   }
 
-  async function enableExternalServices() {
-    loadStyle('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-    loadStyle('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  async function enableMapServices() {
+    loadStyle('/leaflet.css');
     try {
-      await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+      await loadScript('/leaflet.js');
       await loadScript(config.appScript, 'module');
-      loadScript('https://www.googletagmanager.com/gtag/js?id=G-0R00EL14X2').then(() => {
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = function gtag() { window.dataLayer.push(arguments); };
-        window.gtag('js', new Date());
-        window.gtag('config', 'G-0R00EL14X2');
-      }).catch(() => {});
     } catch {
       document.documentElement.classList.add('external-services-error');
     }
+  }
+
+  function enableAnalytics() {
+    loadScript('https://www.googletagmanager.com/gtag/js?id=G-0R00EL14X2').then(() => {
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', 'G-0R00EL14X2');
+    }).catch(() => {});
+  }
+
+  function showSettingsButton() {
+    if (document.querySelector('.consent-settings-button')) return;
+    const button = document.createElement('button');
+    button.className = 'consent-settings-button';
+    button.type = 'button';
+    button.textContent = 'Datenschutz-Einstellungen';
+    button.addEventListener('click', showChoice);
+    document.body.append(button);
+  }
+
+  function useBasicSite() {
+    setCookie(CHOICE_KEY, 'essential');
+    deleteCookie(MAP_KEY);
+    deleteCookie(ANALYTICS_KEY);
+    deleteCookie(LEGACY_KEY);
+    document.documentElement.classList.add('external-services-rejected');
+    showSettingsButton();
   }
 
   function showChoice() {
@@ -48,25 +82,28 @@
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'consent-title');
-    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Externe Dienste zulassen?</h2><p>Mit Ihrer Einwilligung laden wir externe Dienste. Dabei können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden.</p><ul><li>OpenStreetMap für die Kartenansicht</li><li>Google Fonts für die Darstellung der Schrift</li><li>Friendly Captcha zum Schutz vor automatisierten Uploads</li><li>Google Analytics zur statistischen Auswertung der Nutzung</li></ul><p class="consent-small">Ohne Ihre Einwilligung werden keine externen Dienste geladen. Kartenansicht und Upload-Funktion können in diesem Fall nicht bereitgestellt werden.</p><div class="consent-actions"><button id="consent-accept" class="primary-button" type="button">Zustimmen</button><button id="consent-reject" class="secondary-button" type="button">Ablehnen</button></div></div>`;
+    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Ihre Auswahl</h2><p>Die Website bleibt ohne optionale Dienste nutzbar. Dafür werden weder Google Analytics noch externe Schriftarten geladen.</p><p>Für die interaktive Karte und das Veröffentlichen eines Fundorts benötigen wir Ihre Einwilligung, um OpenStreetMap und Friendly Captcha zu laden. Dabei können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden.</p><label class="analytics-choice"><input id="analytics-consent" name="analytics-consent" type="checkbox" ${hasAnalyticsConsent() ? 'checked' : ''} /> <span>Google Analytics zur anonymisierten statistischen Auswertung aktivieren (optional)</span></label><p class="consent-small">Sie können die Website ohne diese Dienste nutzen. Karte und Upload stehen erst nach der gesonderten Aktivierung der dafür erforderlichen Dienste zur Verfügung. Ihre Auswahl können Sie jederzeit über die Datenschutz-Einstellungen ändern oder widerrufen.</p><div class="consent-actions"><button id="consent-map" class="primary-button" type="button">Karte und Upload aktivieren</button><button id="consent-essential" class="secondary-button" type="button">Nur Website nutzen</button></div></div>`;
     document.body.append(dialog);
-    document.getElementById('consent-accept').addEventListener('click', () => {
-      document.cookie = `${KEY}=granted; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax`;
+    const analyticsConsent = document.getElementById('analytics-consent');
+    document.getElementById('consent-map').addEventListener('click', () => {
+      setCookie(MAP_KEY, 'granted');
+      setCookie(CHOICE_KEY, 'map');
+      deleteCookie(LEGACY_KEY);
+      if (analyticsConsent.checked) setCookie(ANALYTICS_KEY, 'granted');
+      else deleteCookie(ANALYTICS_KEY);
       dialog.remove();
-      enableExternalServices();
+      enableMapServices();
+      if (analyticsConsent.checked) enableAnalytics();
+      showSettingsButton();
     });
-    document.getElementById('consent-reject').addEventListener('click', () => {
+    document.getElementById('consent-essential').addEventListener('click', () => {
       dialog.remove();
-      document.documentElement.classList.add('external-services-rejected');
-      const notice = document.createElement('button');
-      notice.className = 'consent-settings-button';
-      notice.type = 'button';
-      notice.textContent = 'Externe Dienste erlauben';
-      notice.addEventListener('click', showChoice);
-      document.body.append(notice);
+      useBasicSite();
     });
   }
 
-  if (hasConsent()) enableExternalServices();
+  if (hasMapConsent()) enableMapServices();
+  if (hasAnalyticsConsent()) enableAnalytics();
+  if (hasCookie(CHOICE_KEY) || hasMapConsent()) showSettingsButton();
   else showChoice();
 })();

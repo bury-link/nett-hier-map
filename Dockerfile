@@ -6,7 +6,9 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build \
   && cp src/public/index.html src/public/fundort.html src/public/admin.html src/public/datenschutz.html src/public/impressum.html src/public/styles.css src/public/consent.js dist/public/ \
-  && cp node_modules/@friendlycaptcha/sdk/sdk.js dist/public/friendlycaptcha-sdk.js
+  && cp node_modules/@friendlycaptcha/sdk/sdk.js dist/public/friendlycaptcha-sdk.js \
+  && cp node_modules/leaflet/dist/leaflet.js node_modules/leaflet/dist/leaflet.css dist/public/ \
+  && cp -r node_modules/leaflet/dist/images dist/public/images
 
 FROM node:26-alpine
 ENV NODE_ENV=production

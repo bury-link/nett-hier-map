@@ -14,5 +14,6 @@ test('third-party resources are deferred behind explicit consent on all public p
   assert.match(consent, /netthier_external_services/);
   assert.match(consent, /G-0R00EL14X2/);
   assert.match(consent, /Friendly Captcha/);
-  assert.match(consent, /if \(hasConsent\(\)\) enableExternalServices\(\)/);
+  assert.match(consent, /if \(hasMapConsent\(\)\) enableMapServices\(\)/);
+  assert.match(consent, /if \(hasAnalyticsConsent\(\)\) enableAnalytics\(\)/);
 });
