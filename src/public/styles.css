@@ -139,7 +139,7 @@ dialog::backdrop { background: rgb(0 0 0 / .62); }
 .consent-actions .primary-button { width: 100%; min-width: 0; }
 .consent-actions .secondary-button { width: 100%; padding: 0 16px; background: var(--ink); color: var(--paper); }
 .consent-settings-button { position: fixed; z-index: 9000; right: 14px; bottom: 14px; border: 2px solid var(--ink); padding: 10px 13px; background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 3px 3px 0 var(--sticker-yellow); }
-.external-services-rejected #karte, .external-services-rejected #location-picker, .external-services-error #karte { display: grid; place-items: center; background: #d9d5cd; }
+.external-services-error #karte { display: grid; place-items: center; background: #d9d5cd; }
 @media (max-width: 450px) { .consent-actions { flex-direction: column; } .consent-actions .primary-button { width: 100%; } }
 .admin-shell { width: min(1100px, 100%); min-height: 100vh; margin: auto; padding: 0 32px 56px; }
 .admin-header { display: grid; min-height: 94px; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 2px solid var(--ink); }

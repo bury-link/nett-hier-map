@@ -7,7 +7,8 @@ test('consent dialog prioritizes accepting all optional services without removin
   const styles = readFileSync(new URL('../src/public/styles.css', import.meta.url), 'utf8');
   assert.match(consent, /id="consent-all" class="primary-button"/);
   assert.match(consent, /id="consent-essential" class="secondary-button"/);
-  assert.match(consent, /Alle optionalen Dienste akzeptieren/);
+  assert.match(consent, /Alle Dienste akzeptieren/);
+  assert.doesNotMatch(consent, /Alle optionalen Dienste akzeptieren/);
   assert.match(consent, /Nur notwendige Dienste/);
   assert.match(styles, /\.consent-actions \{ display: flex; flex-direction: column/);
 });
