@@ -1,17 +1,19 @@
 import { Pool } from 'pg';
 
-export type Sighting = { id: string; latitude: number; longitude: number; imageUrl: string; thumbnailUrl: string; createdAt: string };
+export type LocationSource = 'manual' | 'exif' | 'unknown';
+export type Sighting = { id: string; latitude: number; longitude: number; locationSource: LocationSource; imageUrl: string; thumbnailUrl: string; createdAt: string };
 export type AdminSighting = Sighting & { status: 'active' | 'disabled'; reportCount: number };
 export type Report = { id: string; sightingId: string; reason: string; createdAt: string };
-type SightingRow = { id: string; latitude: number; longitude: number; image_filename: string; thumbnail_filename: string | null; status: 'active' | 'disabled'; created_at: Date; report_count: number | string };
-const baseSelect = `SELECT s.id, s.latitude, s.longitude, s.image_filename, s.thumbnail_filename, s.status, s.created_at, COUNT(r.id) FILTER (WHERE r.status = 'open') AS report_count FROM sightings s LEFT JOIN reports r ON r.sighting_id = s.id`;
-function toSighting(row: SightingRow): Sighting { return { id: row.id, latitude: row.latitude, longitude: row.longitude, imageUrl: `/uploads/${encodeURIComponent(row.image_filename)}`, thumbnailUrl: `/uploads/${encodeURIComponent(row.thumbnail_filename ?? row.image_filename)}`, createdAt: row.created_at.toISOString() }; }
+type SightingRow = { id: string; latitude: number; longitude: number; location_source: LocationSource; image_filename: string; thumbnail_filename: string | null; status: 'active' | 'disabled'; created_at: Date; report_count: number | string };
+const baseSelect = `SELECT s.id, s.latitude, s.longitude, s.location_source, s.image_filename, s.thumbnail_filename, s.status, s.created_at, COUNT(r.id) FILTER (WHERE r.status = 'open') AS report_count FROM sightings s LEFT JOIN reports r ON r.sighting_id = s.id`;
+function toSighting(row: SightingRow): Sighting { return { id: row.id, latitude: row.latitude, longitude: row.longitude, locationSource: row.location_source, imageUrl: `/uploads/${encodeURIComponent(row.image_filename)}`, thumbnailUrl: `/uploads/${encodeURIComponent(row.thumbnail_filename ?? row.image_filename)}`, createdAt: row.created_at.toISOString() }; }
 export function createDatabase(connectionString: string): Pool { return new Pool({ connectionString }); }
 export async function initialiseDatabase(pool: Pool): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sightings (id UUID PRIMARY KEY, latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90), longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180), image_filename TEXT NOT NULL, thumbnail_filename TEXT, status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     ALTER TABLE sightings ADD COLUMN IF NOT EXISTS thumbnail_filename TEXT;
     ALTER TABLE sightings ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+    ALTER TABLE sightings ADD COLUMN IF NOT EXISTS location_source TEXT NOT NULL DEFAULT 'unknown' CHECK (location_source IN ('manual', 'exif', 'unknown'));
     CREATE TABLE IF NOT EXISTS reports (id UUID PRIMARY KEY, sighting_id UUID NOT NULL REFERENCES sightings(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK (char_length(reason) BETWEEN 5 AND 1000), status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), resolved_at TIMESTAMPTZ);
     CREATE INDEX IF NOT EXISTS sightings_created_at_idx ON sightings (created_at DESC);
     CREATE INDEX IF NOT EXISTS sightings_status_idx ON sightings (status);
@@ -26,4 +28,4 @@ export async function resolveReport(pool: Pool, id: string): Promise<boolean> { 
 export async function findActiveUpload(pool: Pool, filename: string): Promise<string | null> { const result = await pool.query<{ filename: string }>(`SELECT image_filename AS filename FROM sightings WHERE status = 'active' AND image_filename = $1 UNION ALL SELECT thumbnail_filename AS filename FROM sightings WHERE status = 'active' AND thumbnail_filename = $1 LIMIT 1`, [filename]); return result.rows[0]?.filename ?? null; }
 export async function setSightingStatus(pool: Pool, id: string, status: 'active' | 'disabled'): Promise<boolean> { const result = await pool.query('UPDATE sightings SET status = $2 WHERE id = $1', [id, status]); return result.rowCount === 1; }
 export async function deleteSighting(pool: Pool, id: string): Promise<{ imageFilename: string; thumbnailFilename: string | null } | null> { const result = await pool.query<{ image_filename: string; thumbnail_filename: string | null }>('DELETE FROM sightings WHERE id = $1 RETURNING image_filename, thumbnail_filename', [id]); const row = result.rows[0]; return row ? { imageFilename: row.image_filename, thumbnailFilename: row.thumbnail_filename } : null; }
-export async function createSighting(pool: Pool, sighting: { id: string; latitude: number; longitude: number; imageFilename: string; thumbnailFilename: string }): Promise<void> { await pool.query(`INSERT INTO sightings (id, latitude, longitude, image_filename, thumbnail_filename) VALUES ($1, $2, $3, $4, $5)`, [sighting.id, sighting.latitude, sighting.longitude, sighting.imageFilename, sighting.thumbnailFilename]); }
+export async function createSighting(pool: Pool, sighting: { id: string; latitude: number; longitude: number; locationSource: LocationSource; imageFilename: string; thumbnailFilename: string }): Promise<void> { await pool.query(`INSERT INTO sightings (id, latitude, longitude, location_source, image_filename, thumbnail_filename) VALUES ($1, $2, $3, $4, $5, $6)`, [sighting.id, sighting.latitude, sighting.longitude, sighting.locationSource, sighting.imageFilename, sighting.thumbnailFilename]); }

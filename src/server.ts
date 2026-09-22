@@ -7,7 +7,7 @@ import multer from 'multer';
 import { createDatabase, createReport, createSighting, deleteSighting, findActiveUpload, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, resolveReport, setSightingStatus } from './database.js';
 import { createAdminSession, parseCookie, verifyAdminCredentials, verifyAdminSession } from './lib/admin-auth.js';
 import { readEmbeddedCoordinates } from './lib/image-metadata.js';
-import { validateSubmission } from './lib/submission.js';
+import { validateSubmissionWithSource } from './lib/submission.js';
 import { createThumbnail, normalizeUploadImage } from './lib/thumbnail.js';
 import { createUploadRateLimiter } from './lib/upload-rate-limit.js';
 
@@ -117,7 +117,7 @@ app.post('/api/sightings', limitUpload, upload.single('photo'), async (request, 
     await verifyFriendlyCaptcha(request.body['frc-captcha-response']);
     const sourceBuffer = readFileSync(temporaryFile!);
     const exif = await readEmbeddedCoordinates(sourceBuffer);
-    const coordinates = validateSubmission(request.body, exif);
+    const coordinates = validateSubmissionWithSource(request.body, exif);
     const normalizedImage = await normalizeUploadImage(sourceBuffer);
     filename = `${randomUUID()}.jpg`;
     thumbnailFilename = `${randomUUID()}.jpg`;
