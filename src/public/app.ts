@@ -41,7 +41,6 @@ const latitudeInput = byId<HTMLInputElement>('latitude');
 const longitudeInput = byId<HTMLInputElement>('longitude');
 const status = byId<HTMLElement>('form-status');
 const locationStatus = byId<HTMLElement>('location-status');
-const locationSummary = byId<HTMLElement>('location-summary');
 const useLocationButton = byId<HTMLButtonElement>('use-location-button');
 const usePhotoLocationButton = byId<HTMLButtonElement>('use-photo-location-button');
 const submitButton = byId<HTMLButtonElement>('submit-button');
@@ -217,7 +216,6 @@ function setManualLocation(lat: number, lng: number, source: 'user' | 'own' | 'p
   } else {
     manualMarker.setLatLng([lat, lng]);
   }
-  locationSummary.textContent = `Punkt gewählt: ${lat.toFixed(5)}°, ${lng.toFixed(5)}°.`;
   updatePhotoLocationAction();
 }
 
@@ -230,7 +228,6 @@ function clearManualLocation(): void {
     manualMarker = null;
   }
   updatePhotoLocationAction();
-  locationSummary.textContent = 'Noch kein Punkt gewählt.';
   setStatus('Manuelle Ortsangabe entfernt. GPS-Daten im Foto bleiben möglich.');
 }
 

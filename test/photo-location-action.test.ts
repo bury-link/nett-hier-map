@@ -11,8 +11,8 @@ test('upload UI offers the detected photo location after a manually positioned p
   assert.match(app, /updatePhotoLocationAction/);
 });
 
-test('original-file guidance stays concise and does not reference a device folder', () => {
+test('photo picker has no redundant file-selection explanation', () => {
   const html = readFileSync(new URL('../src/public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /Öffnet die Dateiauswahl\. Nur Bilddateien\./);
+  assert.doesNotMatch(html, /Öffnet die Dateiauswahl/);
   assert.doesNotMatch(html, /DCIM\/Camera/);
 });

@@ -106,10 +106,10 @@ dialog::backdrop { background: rgb(0 0 0 / .62); }
 .preview-remove { position: absolute; right: 8px; bottom: 8px; border: 2px solid var(--ink); border-radius: 0; padding: 7px 10px; background: var(--paper); font-size: .75rem; font-weight: 600; }
 .location-set { margin: 25px 0 0; padding: 0; border: 0; }
 .location-set legend { padding: 0; font-weight: 700; }
-.field-hint { margin: 7px 0 13px; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.field-hint { margin: 7px 0 6px; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.gps-disclaimer { margin: 0 0 13px; color: var(--muted); font-size: .75rem; line-height: 1.4; }
 .location-picker-wrap { overflow: hidden; border: 2px solid var(--ink); background: #dfe8d8; }
 #location-picker { height: clamp(210px, 34vh, 290px); min-height: 210px; background: #dfe8d8; }
-.location-summary { margin: 0; padding: 8px 10px; border-top: 2px solid var(--ink); background: #fffdf9; font-size: .75rem; font-weight: 600; line-height: 1.35; }
 .location-actions { display: flex; align-items: center; gap: 18px; margin-top: 13px; }
 .captcha-section { margin-top: 22px; padding: 12px; border: 2px solid var(--ink); background: #fffdf9; }
 .captcha-title { margin: 0 0 8px; font-size: .8rem; font-weight: 700; }

@@ -68,18 +68,18 @@
         <div class="dialog-intro"><p class="eyebrow">NEUER FUNDORT</p><h2 id="upload-title">Zeig uns deinen<br />netten Ort.</h2><p>Wir veröffentlichen nur das Foto und einen gerundeten Kartenpunkt.</p></div>
         <div class="form-grid">
           <label class="file-drop" for="photo">
-            <input id="photo" name="photo" type="file" required aria-describedby="original-file-hint" />
+            <input id="photo" name="photo" type="file" required />
             <span class="file-icon" aria-hidden="true">＋</span>
-            <span><strong id="photo-label">Foto auswählen</strong><small id="original-file-hint">Öffnet die Dateiauswahl. Nur Bilddateien.</small></span>
+            <span><strong id="photo-label">Foto auswählen</strong></span>
           </label>
           <div id="image-preview" class="image-preview" hidden><img alt="Vorschau des ausgewählten Fotos" /><button id="remove-photo" type="button" class="preview-remove">Foto entfernen</button></div>
         </div>
         <fieldset class="location-set">
           <legend>Wo wurde es aufgenommen?</legend>
-          <p id="location-help" class="field-hint">Setze den Pin direkt auf der Karte oder verschiebe ihn. Hat dein Foto GPS-Daten, können wir diese nutzen, wenn du keinen Punkt setzt.</p>
+          <p id="location-help" class="field-hint">GPS aus dem Foto oder setze den Pin manuell.</p>
+          <p class="gps-disclaimer">GPS-Daten können ungenau sein. Prüfe den Kartenpunkt vor der Veröffentlichung.</p>
           <div class="location-picker-wrap">
             <div id="location-picker" role="application" aria-label="Karte zur Auswahl des Fundorts. Klicke auf die Karte oder verschiebe den Pin."></div>
-            <p id="location-summary" class="location-summary" aria-live="polite">Noch kein Punkt gewählt.</p>
           </div>
           <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
           <div class="location-actions">
