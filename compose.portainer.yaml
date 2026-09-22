@@ -1,0 +1,47 @@
+services:
+  app:
+    image: bury-link/nett-hier-map:20260921-15
+    container_name: nett-hier-map
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgres://netthier:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/netthier
+      UPLOAD_DIRECTORY: /app/data/uploads
+      FRIENDLYCAPTCHA_API_KEY: ${FRIENDLYCAPTCHA_API_KEY:?set FRIENDLYCAPTCHA_API_KEY}
+      FRIENDLYCAPTCHA_SITE_KEY: "FCMS82ULRDPS8F43"
+      NETTHIER_ADMIN_USERNAME: ${NETTHIER_ADMIN_USERNAME:?set NETTHIER_ADMIN_USERNAME}
+      NETTHIER_ADMIN_PASSWORD: ${NETTHIER_ADMIN_PASSWORD:?set NETTHIER_ADMIN_PASSWORD}
+      NETTHIER_SESSION_SECRET: ${NETTHIER_SESSION_SECRET:?set NETTHIER_SESSION_SECRET}
+    ports:
+      - "8091:3000"
+    volumes:
+      - sightings_uploads_v2:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    container_name: nett-hier-map-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: netthier
+      POSTGRES_USER: netthier
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - sightings_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netthier -d netthier"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sightings_db:
+  sightings_uploads_v2:

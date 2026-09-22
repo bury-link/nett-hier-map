@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Verwaltung · Nett hier</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="admin-shell">
+      <header class="admin-header"><a class="wordmark" href="/">nett <span>hier.</span></a><p>Verwaltung</p><button id="logout" class="text-button" type="button" hidden>Abmelden</button></header>
+      <section id="login-view" class="admin-login" aria-labelledby="login-title">
+        <p class="eyebrow">GESCHÜTZTER BEREICH</p><h1 id="login-title">Anmelden</h1>
+        <form id="login-form"><label>Benutzername<input id="username" name="username" autocomplete="username" required /></label><label>Passwort<input id="password" name="password" type="password" autocomplete="current-password" required /></label><p id="login-status" class="admin-status" role="status"></p><button class="primary-button" type="submit">Anmelden <span aria-hidden="true">→</span></button></form>
+      </section>
+      <section id="admin-view" hidden aria-labelledby="admin-title">
+        <div class="admin-intro"><div><p class="eyebrow">MODERATION</p><h1 id="admin-title">Sichtungen verwalten</h1></div><p>Deaktivierte Sichtungen sind öffentlich nicht sichtbar. Beim endgültigen Löschen werden Eintrag, Originalbild und Vorschaubild entfernt.</p></div>
+        <p id="admin-status" class="admin-status" role="status"></p><section class="admin-reports-section" aria-labelledby="reports-title"><h2 id="reports-title">Offene Meldungen</h2><div id="report-list" class="report-list" aria-live="polite"></div></section><div id="admin-list" class="admin-list" aria-live="polite"></div>
+      </section>
+    </main>
+    <script type="module" src="/admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffdd00" />
+    <meta name="description" content="Nett hier: Beobachtungen aus der Nachbarschaft auf einer gemeinsamen Karte." />
+    <title>Nett hier · Karte</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#karte">Direkt zur Karte</a>
+    <main class="app-shell">
+      <header class="site-header">
+        <a class="wordmark" href="/" aria-label="Nett hier, Startseite">nett <span>hier.</span></a>
+        <p class="header-note">Fundorte der gelben Sticker.</p>
+        <button class="text-button" type="button" data-open-upload>Fundort teilen <span aria-hidden="true">↗</span></button>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">DIE NETT-HIER-STICKERKARTE</p>
+          <h1 id="page-title">Wo hast du ihn<br />entdeckt?</h1>
+        </div>
+        <p class="intro-copy">Sammle Fotos der gelben Baden-Württemberg-Sticker. Jeder Fundort wird als Punkt auf der Karte sichtbar.</p>
+      </section>
+
+      <section class="map-layout" aria-label="Karte mit Fundorten">
+        <div class="map-column">
+          <div class="map-frame">
+            <div id="karte" role="application" aria-label="Interaktive Karte mit Fundorten."></div>
+            <div class="map-toolbar" aria-label="Kartenwerkzeuge">
+            <button class="map-control" id="locate-button" type="button" aria-label="Meinen Standort auf der Karte zeigen" title="Meinen Standort zeigen">◎</button>
+            <button class="map-control" id="reset-view" type="button" aria-label="Kartenausschnitt zurücksetzen" title="Ausschnitt zurücksetzen">↺</button>
+          </div>
+          <p id="location-status" class="map-location-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="map-caption"><span class="sticker-dot" aria-hidden="true"></span><span id="sighting-count">Lade Fundorte …</span></div>
+          </div>
+          <button class="map-add-button primary-button" type="button" data-open-upload aria-label="Neuen Fundort hinzufügen">Hinzufügen <span aria-hidden="true">+</span></button>
+        </div>
+
+        <aside class="sightings-panel" aria-labelledby="sightings-title">
+          <div class="panel-head">
+            <h2 id="sightings-title">Neu auf der Karte</h2>
+          </div>
+          <div id="sighting-list" class="sighting-list" aria-live="polite" aria-busy="true"></div>
+        </aside>
+      </section>
+
+      <section class="how-it-works" aria-labelledby="how-title">
+        <p class="eyebrow">SO EINFACH</p>
+        <h2 id="how-title">Ein Foto. Ein Punkt.<br />Eine gute Geschichte.</h2>
+        <ol>
+          <li><span>01</span> Foto auswählen</li>
+          <li><span>02</span> Ort prüfen oder Punkt setzen</li>
+          <li><span>03</span> Auf der Karte entdecken</li>
+        </ol>
+      </section>
+      <footer class="site-footer">
+        <p>Ein Kartenprojekt von <strong>bury/link</strong>. <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a> · <a href="https://shop.thelaend.de/index.php?id_product=11&amp;rewrite=nett-hier-sticker&amp;controller=product&amp;id_lang=1" target="_blank" rel="noopener noreferrer">Offizielle Nett-hier-Sticker im Shop kaufen <span aria-hidden="true">↗</span></a></p>
+        <p class="site-disclaimer">Unabhängiges Community-Projekt. Nicht offiziell mit THE LÄND oder dem offiziellen Sticker-Shop verbunden. Diese Karte dokumentiert vorhandene Sticker. Bitte bringe Sticker nur mit Erlaubnis an und beschädige kein fremdes Eigentum.</p>
+      </footer>
+    </main>
+
+    <dialog id="upload-dialog" aria-labelledby="upload-title">
+      <div class="dialog-bar"><p class="wordmark">nett <span>hier.</span></p><button id="close-upload" class="icon-button" type="button" aria-label="Dialog schließen">×</button></div>
+      <form id="upload-form" novalidate>
+        <div class="dialog-intro"><p class="eyebrow">NEUER FUNDORT</p><h2 id="upload-title">Zeig uns deinen<br />netten Ort.</h2><p>Wir veröffentlichen nur das Foto und einen gerundeten Kartenpunkt.</p></div>
+        <div class="form-grid">
+          <label class="file-drop" for="photo">
+            <input id="photo" name="photo" type="file" required aria-describedby="original-file-hint" />
+            <span class="file-icon" aria-hidden="true">＋</span>
+            <span><strong id="photo-label">Foto auswählen</strong><small id="original-file-hint">Öffnet die Dateiauswahl. Nur Bilddateien.</small></span>
+          </label>
+          <div id="image-preview" class="image-preview" hidden><img alt="Vorschau des ausgewählten Fotos" /><button id="remove-photo" type="button" class="preview-remove">Foto entfernen</button></div>
+        </div>
+        <fieldset class="location-set">
+          <legend>Wo wurde es aufgenommen?</legend>
+          <p id="location-help" class="field-hint">Setze den Pin direkt auf der Karte oder verschiebe ihn. Hat dein Foto GPS-Daten, können wir diese nutzen, wenn du keinen Punkt setzt.</p>
+          <div class="location-picker-wrap">
+            <div id="location-picker" role="application" aria-label="Karte zur Auswahl des Fundorts. Klicke auf die Karte oder verschiebe den Pin."></div>
+            <p id="location-summary" class="location-summary" aria-live="polite">Noch kein Punkt gewählt.</p>
+          </div>
+          <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+          <div class="location-actions">
+            <button class="secondary-button" id="use-location-button" type="button">Meinen Standort verwenden</button>
+            <button class="secondary-button" id="use-photo-location-button" type="button" hidden>Foto-Standort verwenden</button>
+          </div>
+          <input id="latitude" name="latitude" type="hidden" />
+          <input id="longitude" name="longitude" type="hidden" />
+        </fieldset>
+        <section class="captcha-section" aria-labelledby="captcha-title">
+          <p id="captcha-title" class="captcha-title">Schutz vor automatischen Uploads</p>
+          <div id="friendly-captcha" class="friendly-captcha" aria-live="polite"></div>
+        </section>
+        <label class="privacy-consent" for="privacy-consent">
+          <input id="privacy-consent" type="checkbox" required />
+          <span>Ich willige ein, dass mein Foto und der zugehörige, gerundete Standort öffentlich auf dieser Karte veröffentlicht werden.</span>
+        </label>
+        <p class="consent-note">Bitte lade nur Fotos hoch, für die du die nötigen Rechte hast. Keine erkennbaren Personen ohne deren Einwilligung.</p>
+        <button class="primary-button" id="submit-button" type="submit" disabled>Fundort veröffentlichen <span aria-hidden="true">→</span></button>
+      </form>
+    </dialog>
+
+    <template id="sighting-card-template">
+      <article class="sighting-card">
+        <button class="card-hit-area" type="button"><img alt="" loading="lazy" /><span class="card-meta"><time></time><span>Auf Karte zeigen</span></span></button>
+      </article>
+    </template>
+    <script>window.netthierConsentConfig = { appScript: '/app.js' };</script>
+    <script src="/consent.js"></script>
+  </body>
+</html>
