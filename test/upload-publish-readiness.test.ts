@@ -10,6 +10,7 @@ test('publish action stays disabled until privacy consent and captcha completion
   assert.match(app, /privacyConsent\.addEventListener\('change', updateSubmitAvailability\)/);
   assert.match(app, /frc:widget\.complete/);
   assert.match(app, /frc:widget\.(?:expire|error|reset)/);
+  assert.match(html, /Ich willige ein, dass mein Foto und der zugehörige Standort auf dieser Seite und dem zugehörigen Instagram-Konto veröffentlicht wird\./);
 });
 
 test('footer links to internal legal pages', () => {
