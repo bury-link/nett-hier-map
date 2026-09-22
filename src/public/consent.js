@@ -73,6 +73,16 @@
     showSettingsButton();
   }
 
+  function acceptAllServices() {
+    setCookie(MAP_KEY, 'granted');
+    setCookie(ANALYTICS_KEY, 'granted');
+    setCookie(CHOICE_KEY, 'all');
+    deleteCookie(LEGACY_KEY);
+    enableMapServices();
+    enableAnalytics();
+    showSettingsButton();
+  }
+
   function showChoice() {
     if (document.getElementById('consent-dialog')) return;
     document.querySelectorAll('.consent-settings-button').forEach((button) => button.remove());
@@ -82,19 +92,11 @@
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'consent-title');
-    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Ihre Auswahl</h2><p>Die Website bleibt ohne optionale Dienste nutzbar. Dafür werden weder Google Analytics noch externe Schriftarten geladen.</p><p>Für die interaktive Karte und das Veröffentlichen eines Fundorts benötigen wir Ihre Einwilligung, um OpenStreetMap und Friendly Captcha zu laden. Dabei können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden.</p><label class="analytics-choice"><input id="analytics-consent" name="analytics-consent" type="checkbox" ${hasAnalyticsConsent() ? 'checked' : ''} /> <span>Google Analytics zur anonymisierten statistischen Auswertung aktivieren (optional)</span></label><p class="consent-small">Sie können die Website ohne diese Dienste nutzen. Karte und Upload stehen erst nach der gesonderten Aktivierung der dafür erforderlichen Dienste zur Verfügung. Ihre Auswahl können Sie jederzeit über die Datenschutz-Einstellungen ändern oder widerrufen.</p><div class="consent-actions"><button id="consent-map" class="primary-button" type="button">Karte und Upload aktivieren</button><button id="consent-essential" class="secondary-button" type="button">Nur Website nutzen</button></div></div>`;
+    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Ihre Privatsphäre</h2><p>Die Website bleibt ohne optionale Dienste nutzbar. Wenn Sie alle optionalen Dienste akzeptieren, laden wir OpenStreetMap für die Karte, Friendly Captcha für Uploads und Meldungen sowie Google Analytics zur statistischen Auswertung.</p><p class="consent-small">Dabei können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden. Ohne Ihre Einwilligung werden keine optionalen Dienste geladen. Ihre Auswahl können Sie jederzeit über die Datenschutz-Einstellungen ändern oder widerrufen.</p><div class="consent-actions"><button id="consent-all" class="primary-button" type="button">Alle optionalen Dienste akzeptieren <span aria-hidden="true">✓</span></button><button id="consent-essential" class="secondary-button" type="button">Nur notwendige Dienste</button></div></div>`;
     document.body.append(dialog);
-    const analyticsConsent = document.getElementById('analytics-consent');
-    document.getElementById('consent-map').addEventListener('click', () => {
-      setCookie(MAP_KEY, 'granted');
-      setCookie(CHOICE_KEY, 'map');
-      deleteCookie(LEGACY_KEY);
-      if (analyticsConsent.checked) setCookie(ANALYTICS_KEY, 'granted');
-      else deleteCookie(ANALYTICS_KEY);
+    document.getElementById('consent-all').addEventListener('click', () => {
       dialog.remove();
-      enableMapServices();
-      if (analyticsConsent.checked) enableAnalytics();
-      showSettingsButton();
+      acceptAllServices();
     });
     document.getElementById('consent-essential').addEventListener('click', () => {
       dialog.remove();

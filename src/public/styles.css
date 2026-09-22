@@ -135,11 +135,9 @@ dialog::backdrop { background: rgb(0 0 0 / .62); }
 .consent-card p, .consent-card li { font-size: .85rem; line-height: 1.45; }
 .consent-card ul { margin: 12px 0; padding-left: 20px; }
 .consent-small { color: var(--muted); }
-.analytics-choice { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0; font-size: .85rem; line-height: 1.4; }
-.analytics-choice input { margin-top: 3px; }
-.consent-actions { display: flex; gap: 10px; margin-top: 18px; }
-.consent-actions .primary-button { width: auto; min-width: 150px; }
-.consent-actions .secondary-button { padding: 0 16px; }
+.consent-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.consent-actions .primary-button { width: 100%; min-width: 0; }
+.consent-actions .secondary-button { width: 100%; padding: 0 16px; background: var(--ink); color: var(--paper); }
 .consent-settings-button { position: fixed; z-index: 9000; right: 14px; bottom: 14px; border: 2px solid var(--ink); padding: 10px 13px; background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 3px 3px 0 var(--sticker-yellow); }
 .external-services-rejected #karte, .external-services-rejected #location-picker, .external-services-error #karte { display: grid; place-items: center; background: #d9d5cd; }
 @media (max-width: 450px) { .consent-actions { flex-direction: column; } .consent-actions .primary-button { width: 100%; } }

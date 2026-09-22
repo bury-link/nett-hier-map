@@ -7,6 +7,6 @@ test('privacy policy distinguishes basic site use from optional map, captcha, an
   assert.match(policy, /ohne optionale Dienste nutzbar/);
   assert.match(policy, /OpenStreetMap/);
   assert.match(policy, /Friendly Captcha/);
-  assert.match(policy, /Google Analytics.*nicht vorausgewählte Option/);
+  assert.match(policy, /Alle optionalen Dienste akzeptieren/);
   assert.doesNotMatch(policy, /Google Fonts/);
 });
