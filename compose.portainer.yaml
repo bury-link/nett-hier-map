@@ -1,6 +1,6 @@
 services:
   app:
-    image: bury-link/nett-hier-map:20260922-20
+    image: bury-link/nett-hier-map:20260922-21
     container_name: nett-hier-map
     restart: unless-stopped
     environment:

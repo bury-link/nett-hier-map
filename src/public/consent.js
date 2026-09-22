@@ -5,6 +5,7 @@
   const config = window.netthierConsentConfig || {};
   const hasCookie = (key, value = 'granted') => document.cookie.split('; ').some((entry) => entry === `${key}=${value}`);
   const hasAnalyticsConsent = () => hasCookie(ANALYTICS_KEY);
+  const hasChoice = () => hasCookie(CHOICE_KEY, 'necessary') || hasCookie(CHOICE_KEY, 'all');
 
   function setCookie(key, value) {
     document.cookie = `${key}=${value}; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax`;
@@ -101,6 +102,6 @@
 
   enableNecessaryServices();
   if (hasAnalyticsConsent()) enableAnalytics();
-  if (hasCookie(CHOICE_KEY)) showSettingsButton();
+  if (hasChoice()) showSettingsButton();
   else showChoice();
 })();
