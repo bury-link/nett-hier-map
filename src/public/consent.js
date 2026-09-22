@@ -47,6 +47,15 @@
     enableMapServices();
   }
 
+  function enableFonts() {
+    if (document.getElementById('google-fonts')) return;
+    const link = document.createElement('link');
+    link.id = 'google-fonts';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+    document.head.append(link);
+  }
+
   function enableAnalytics() {
     loadScript('https://www.googletagmanager.com/gtag/js?id=G-0R00EL14X2').then(() => {
       window.dataLayer = window.dataLayer || [];
@@ -75,6 +84,7 @@
   function acceptAllServices() {
     setCookie(ANALYTICS_KEY, 'granted');
     setCookie(CHOICE_KEY, 'all');
+    enableFonts();
     enableAnalytics();
     showSettingsButton();
   }
@@ -88,7 +98,7 @@
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'consent-title');
-    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Ihre Privatsphäre</h2><p>Für Karte, Uploads und Meldungen nutzen wir technisch notwendige Dienste: OpenStreetMap und Friendly Captcha. Google Analytics verwenden wir nur mit Ihrer Einwilligung zur statistischen Auswertung.</p><p class="consent-small">Bei der Nutzung der Karte und des Captchas können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden. Ihre Einwilligung für Google Analytics können Sie jederzeit über die Datenschutz-Einstellungen ändern oder widerrufen.</p><div class="consent-actions"><button id="consent-all" class="primary-button" type="button">Alle Dienste akzeptieren <span aria-hidden="true">✓</span></button><button id="consent-essential" class="secondary-button" type="button">Nur notwendige Dienste</button></div></div>`;
+    dialog.innerHTML = `<div class="consent-card"><p class="eyebrow">DATENSCHUTZ</p><h2 id="consent-title">Ihre Privatsphäre</h2><p>Für Karte, Uploads und Meldungen nutzen wir technisch notwendige Dienste: OpenStreetMap und Friendly Captcha. Wenn Sie alle Dienste akzeptieren, laden wir zusätzlich Google Fonts für die Schrift Space Grotesk und Google Analytics zur statistischen Auswertung.</p><p class="consent-small">Bei der Nutzung der Karte und des Captchas können Daten, insbesondere Ihre IP-Adresse, an die jeweiligen Anbieter übertragen werden. Ihre Einwilligung für Google Analytics können Sie jederzeit über die Datenschutz-Einstellungen ändern oder widerrufen.</p><div class="consent-actions"><button id="consent-all" class="primary-button" type="button">Alle Dienste akzeptieren <span aria-hidden="true">✓</span></button><button id="consent-essential" class="secondary-button" type="button">Nur notwendige Dienste</button></div></div>`;
     document.body.append(dialog);
     document.getElementById('consent-all').addEventListener('click', () => {
       dialog.remove();
@@ -101,6 +111,7 @@
   }
 
   enableNecessaryServices();
+  if (hasCookie(CHOICE_KEY, 'all')) enableFonts();
   if (hasAnalyticsConsent()) enableAnalytics();
   if (hasChoice()) showSettingsButton();
   else showChoice();

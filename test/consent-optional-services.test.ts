@@ -6,8 +6,9 @@ const publicFile = (name: string) => readFileSync(new URL(`../src/public/${name}
 
 test('necessary map and captcha services do not depend on consent while analytics does', () => {
   const consent = publicFile('consent.js');
-  assert.doesNotMatch(consent, /fonts\.googleapis\.com/);
-  assert.match(consent, /Nur notwendige Dienste/);
+  assert.match(consent, /function enableFonts\(\)/);
+  assert.match(consent, /fonts\.googleapis\.com/);
+  assert.match(consent, /if \(hasCookie\(CHOICE_KEY, 'all'\)\) enableFonts\(\)/);
   assert.match(consent, /Alle Dienste akzeptieren/);
   assert.doesNotMatch(consent, /Alle optionalen Dienste akzeptieren/);
   assert.match(consent, /function acceptAllServices\(\)/);

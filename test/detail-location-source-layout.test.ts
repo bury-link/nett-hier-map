@@ -11,5 +11,8 @@ test('detail page prioritizes photo and map and places reporting last', () => {
   assert.match(detail, /Manuell auf der Karte gesetzt/);
   assert.match(css, /\.detail-image \{ grid-column: 1; grid-row: 1;/);
   assert.match(css, /\.detail-map-block \{ grid-column: 2; grid-row: 1;/);
-  assert.match(css, /\.report-block \{ grid-column: 1 \/ -1; grid-row: 3;/);
+  assert.match(detail, /document\.createElement\('details'\)/);
+  assert.match(detail, /<summary>Fundort melden/);
+  assert.match(detail, /class="report-content"/);
+  assert.match(css, /\.report-block summary \{[^}]*cursor: pointer/);
 });

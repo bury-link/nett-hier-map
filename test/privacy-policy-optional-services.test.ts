@@ -9,5 +9,5 @@ test('privacy policy identifies map and captcha as necessary and analytics as co
   assert.match(policy, /Friendly Captcha/);
   assert.match(policy, /Alle Dienste akzeptieren/);
   assert.doesNotMatch(policy, /optional/i);
-  assert.doesNotMatch(policy, /Google Fonts/);
+  assert.match(policy, /Google Fonts/);
 });
