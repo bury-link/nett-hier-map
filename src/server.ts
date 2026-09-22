@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
@@ -7,8 +8,7 @@ import { createDatabase, createReport, createSighting, deleteSighting, findActiv
 import { createAdminSession, parseCookie, verifyAdminCredentials, verifyAdminSession } from './lib/admin-auth.js';
 import { readEmbeddedCoordinates } from './lib/image-metadata.js';
 import { validateSubmission } from './lib/submission.js';
-import { persistUploadedFile } from './lib/upload-storage.js';
-import { createThumbnail } from './lib/thumbnail.js';
+import { createThumbnail, normalizeUploadImage } from './lib/thumbnail.js';
 import { createUploadRateLimiter } from './lib/upload-rate-limit.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -44,7 +44,7 @@ const metadataUpload = multer({
 const database = createDatabase(databaseUrl);
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+app.set('trust proxy', false);
 app.use(express.json({ limit: '20kb' }));
 
 async function verifyFriendlyCaptcha(responseToken: unknown): Promise<void> {
@@ -110,22 +110,27 @@ app.post('/api/photo-location', metadataUpload.single('photo'), async (request, 
 
 app.post('/api/sightings', limitUpload, upload.single('photo'), async (request, response, next) => {
   const temporaryFile = request.file?.path;
+  let filename: string | undefined;
+  let thumbnailFilename: string | undefined;
   try {
     if (!request.file) throw new Error('Please choose an image file.');
     await verifyFriendlyCaptcha(request.body['frc-captcha-response']);
-    const exif = await readEmbeddedCoordinates(readFileSync(temporaryFile!));
+    const sourceBuffer = readFileSync(temporaryFile!);
+    const exif = await readEmbeddedCoordinates(sourceBuffer);
     const coordinates = validateSubmission(request.body, exif);
-    const extension = path.extname(request.file.originalname).toLowerCase() || '.jpg';
-    const filename = `${randomUUID()}${extension}`;
-    const thumbnailFilename = `${randomUUID()}.jpg`;
-    await persistUploadedFile(temporaryFile!, uploadPath(filename));
+    const normalizedImage = await normalizeUploadImage(sourceBuffer);
+    filename = `${randomUUID()}.jpg`;
+    thumbnailFilename = `${randomUUID()}.jpg`;
+    await writeFile(uploadPath(filename), normalizedImage);
     await createThumbnail(uploadPath(filename), uploadPath(thumbnailFilename));
     const id = randomUUID();
     await createSighting(database, { id, ...coordinates, imageFilename: filename, thumbnailFilename });
     response.status(201).json({ id, ...coordinates, imageUrl: `/uploads/${filename}`, thumbnailUrl: `/uploads/${thumbnailFilename}` });
   } catch (error) {
-    if (temporaryFile && existsSync(temporaryFile)) rmSync(temporaryFile);
+    for (const generatedFile of [filename, thumbnailFilename]) if (generatedFile && existsSync(uploadPath(generatedFile))) rmSync(uploadPath(generatedFile));
     next(error);
+  } finally {
+    if (temporaryFile && existsSync(temporaryFile)) rmSync(temporaryFile);
   }
 });
 
@@ -133,6 +138,7 @@ app.post('/api/reports', async (request, response, next) => {
   try {
     const rate = reportRateLimiter.check(request.ip || 'unknown');
     if (!rate.allowed) return response.status(429).json({ error: 'Zu viele Meldungen. Bitte später erneut versuchen.' });
+    await verifyFriendlyCaptcha(request.body?.captchaResponse);
     const sightingId = request.body?.sightingId;
     const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
     if (typeof sightingId !== 'string' || !/^[0-9a-f-]{36}$/i.test(sightingId) || reason.length < 5 || reason.length > 1000) return response.status(400).json({ error: 'Bitte beschreibe den Grund der Meldung in 5 bis 1.000 Zeichen.' });
