@@ -27,7 +27,7 @@ test('admin interface connects Meta and moderates opted-in publications', () => 
 
 test('only approved active queue items are published through Meta with a public upload URL', () => {
   assert.match(server, /claimInstagramPublication\(database, sightingId\)/);
-  assert.match(server, /new URL\(`\/uploads\/\$\{encodeURIComponent\(publication\.imageFilename\)\}`, publicBaseUrl\)/);
+  assert.match(server, /new URL\(`\/instagram-media\/\$\{encodeURIComponent\(publication\.imageFilename\)\}`, publicBaseUrl\)/);
   assert.match(server, /publishInstagramImage/);
   assert.match(server, /completeInstagramPublication\(database, sightingId, mediaId\)/);
 });

@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import sharp from 'sharp';
 import express from 'express';
 import multer from 'multer';
 import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listInstagramPublicationsMissingCaptions, listOpenReports, listSightings, listSightingsMissingLocationDescriptions, resolveReport, saveInstagramConnection, setInstagramCaptionIfEmpty, setInstagramPublicationStatus, setLocationDescription, setSightingStatus } from './database.js';
@@ -141,6 +142,16 @@ app.get('/uploads/:filename', async (request, response, next) => {
     next(error);
   }
 });
+app.get('/instagram-media/:filename', async (request, response, next) => {
+  try {
+    const filename = String(request.params.filename);
+    if (await findActiveUpload(database, filename) === null) return response.sendStatus(404);
+    const image = await sharp(uploadPath(filename), { failOn: 'error' }).rotate().jpeg({ quality: 90, progressive: true }).toBuffer();
+    return response.type('jpeg').set('Cache-Control', 'public, max-age=3600').send(image);
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get('/api/sightings', async (_request, response, next) => {
   try { response.json({ sightings: await listSightings(database) }); } catch (error) { next(error); }
@@ -250,7 +261,7 @@ app.post('/api/admin/sightings/:id/instagram/publish', requireAdmin, async (requ
     if (!publication) return response.status(409).json({ error: 'Diese Sichtung ist nicht zur Veröffentlichung freigegeben.' });
     const connection = await getSavedInstagramConnection(database);
     if (!connection || !metaTokenEncryptionSecret) { await failInstagramPublication(database, sightingId, 'Instagram account is not connected.'); return response.status(409).json({ error: 'Instagram-Konto ist nicht verbunden.' }); }
-    const imageUrl = new URL(`/uploads/${encodeURIComponent(publication.imageFilename)}`, publicBaseUrl).toString();
+    const imageUrl = new URL(`/instagram-media/${encodeURIComponent(publication.imageFilename)}`, publicBaseUrl).toString();
     const caption = publication.caption ?? 'Nett hier.\n\nFund eingereicht auf nett-hier-map.de\nEntdecke weitere Fundorte über den Link in der Bio.\n\n#netthier #theländ #badenwürttemberg #stickersichtung';
     const mediaId = await publishInstagramImage({ instagramAccountId: connection.instagramAccountId, accessToken: decryptToken(connection.accessToken, metaTokenEncryptionSecret), imageUrl, caption });
     await completeInstagramPublication(database, sightingId, mediaId);
