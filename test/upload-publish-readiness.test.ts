@@ -10,7 +10,7 @@ test('publish action stays disabled until privacy consent and captcha completion
   assert.match(app, /privacyConsent\.addEventListener\('change', updateSubmitAvailability\)/);
   assert.match(app, /frc:widget\.complete/);
   assert.match(app, /frc:widget\.(?:expire|error|reset)/);
-  assert.match(html, /automatisch mit OpenStreetMap erzeugte Ortsbeschreibung/);
+  assert.match(html, /OpenStreetMap und OpenRouter erzeugte Ortsbeschreibung/);
 });
 
 test('footer links to internal legal pages', () => {

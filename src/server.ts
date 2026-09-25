@@ -41,7 +41,7 @@ const pause = (milliseconds: number): Promise<void> => new Promise((resolve) => 
 async function queueLocationDescription(id: string, latitude: number, longitude: number): Promise<void> {
   try {
     const locationDescription = await resolveLocationDescription(latitude, longitude);
-    if (locationDescription) await setLocationDescription(database, id, locationDescription);
+    if (locationDescription) await setLocationDescription(database, id, locationDescription.value, locationDescription.interpreted);
   } catch (error) {
     console.warn(`Location description lookup failed for sighting ${id}:`, error instanceof Error ? error.message : 'Unknown error');
   }

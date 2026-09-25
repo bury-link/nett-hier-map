@@ -7,6 +7,7 @@ const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8'
 
 test('stores a nullable generated location description and returns it to public clients', () => {
   assert.match(database, /location_description TEXT/);
+  assert.match(database, /location_description_interpreted BOOLEAN NOT NULL DEFAULT FALSE/);
   assert.match(database, /locationDescription: string \| null/);
   assert.match(database, /locationDescription: row\.location_description/);
 });
