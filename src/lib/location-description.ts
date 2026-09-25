@@ -7,7 +7,7 @@ export type ReverseGeocodeResult = {
 
 type FetchImplementation = (input: string | URL, init?: RequestInit) => Promise<Response>;
 const locationModel = 'openai/gpt-5.6-luna';
-export const locationDescriptionPromptVersion = '2026-09-25-v4';
+export const locationDescriptionPromptVersion = '2026-09-25-v5';
 
 const settlementKeys = ['city', 'town', 'village', 'municipality', 'county'] as const;
 const featureLabels: Record<string, { preposition: string; label: string }> = {
@@ -77,7 +77,7 @@ export async function interpretLocationDescription(result: ReverseGeocodeResult,
       max_tokens: 160,
       messages: [{
         role: 'system',
-        content: 'Formuliere genau eine kurze, natürliche deutsche Ortszeile für ein Foto. Nutze ausschließlich auf Basis der bereitgestellten Daten. Erfinde keine Sehenswürdigkeiten, Aktivitäten, Menschen oder Details. Gib keine Einleitung, Erklärung oder Anführungszeichen aus. Priorisiere: benannte Straße oder konkretes Objekt, verständlicher Ort, Land. Schreibe sachlich und knapp, maximal 160 Zeichen. Verwende keine Füllphrasen wie „befindet sich“, „steht“ oder „ist ein“ als eigenständigen Satzteil. Baue Informationen direkt ein: „Busshuttle-Halt am Flughafen Zadar in Kroatien“, nicht „Der Busshuttle-Halt am Flughafen Zadar befindet sich in Zemunik Donji in der Gespanschaft Zadar, Kroatien.“ Bei Straßen: „Zeblasstrasse in Samnaun, Graubünden, in der Schweiz“, nicht „… ist ein Weg in der Schweiz.“ Nutze einen erklärenden Einschub nur, wenn er einen echten Mehrwert hat: „Die Nibbevegen, eine unklassifizierte Straße in Stranda, Möre und Romsdal, Norwegen.“ Wenn ein Straßentyp vorliegt, nenne ihn in diesem Einschub. Bei einem nummerierten Wegweiser: „Wegweiser mit der Bezeichnung 263_01 bei Porto Azzurro in der Toskana.“ Keine überflüssigen Verwaltungsregionen, Stadtteile oder wiederholten Ortsnamen. Ohne Mehrwert einer Straßennennung: nur Straße, Ort und Land, zum Beispiel „Montée de Clausen in Clausen, Luxemburg.“',
+        content: 'Formuliere genau eine kurze, natürliche deutsche Ortszeile für ein Foto. Nutze ausschließlich auf Basis der bereitgestellten Daten. Erfinde keine Sehenswürdigkeiten, Aktivitäten, Menschen oder Details. Gib keine Einleitung, Erklärung oder Anführungszeichen aus. Priorisiere: benannte Straße oder konkretes Objekt, verständlicher Ort, Land. Schreibe sachlich und knapp, maximal 160 Zeichen. Verwende keine Füllphrasen wie „befindet sich“, „steht“ oder „ist ein“ als eigenständigen Satzteil. Baue Informationen direkt ein: „Busshuttle-Halt am Flughafen Zadar in Kroatien“, nicht „Der Busshuttle-Halt am Flughafen Zadar befindet sich in Zemunik Donji in der Gespanschaft Zadar, Kroatien.“ Bei Straßen: „Zeblasstrasse in Samnaun, Graubünden, in der Schweiz“, nicht „… ist ein Weg in der Schweiz.“ Nutze einen erklärenden Einschub nur, wenn er einen echten Mehrwert hat: „Die Nibbevegen, eine unklassifizierte Straße in Stranda, Möre und Romsdal, Norwegen.“ Bei einem Busshuttle-Halt eines Flughafens nenne Einrichtung und Flughafenort; nenne nicht die abweichende Straße oder Gemeinde, wenn der Flughafenname die Stadt bereits enthält. Wenn ein Straßentyp vorliegt, nenne ihn in diesem Einschub. Bei einem nummerierten Wegweiser: „Wegweiser mit der Bezeichnung 263_01 bei Porto Azzurro in der Toskana.“ Keine überflüssigen Verwaltungsregionen, Stadtteile oder wiederholten Ortsnamen. Ohne Mehrwert einer Straßennennung: nur Straße, Ort und Land, zum Beispiel „Montée de Clausen in Clausen, Luxemburg.“',
       }, {
         role: 'user',
         content: JSON.stringify(result),
