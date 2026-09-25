@@ -33,7 +33,12 @@ export function buildMetaAuthorizationUrl(input: { appId: string; redirectUri: s
 async function graphJson(url: URL, init: RequestInit | undefined, fetcher: Fetch): Promise<Record<string, unknown>> {
   const response = await fetcher(url, init);
   const body = await response.json().catch(() => null) as Record<string, unknown> | null;
-  if (!response.ok || !body) throw new Error('Meta Graph API request failed.');
+  if (!response.ok || !body) {
+    const metaError = body && typeof body.error === 'object' && body.error ? body.error as Record<string, unknown> : null;
+    const code = typeof metaError?.code === 'number' ? ` (code ${metaError.code})` : '';
+    const message = typeof metaError?.message === 'string' ? `: ${metaError.message.replace(/[\r\n]/g, ' ').slice(0, 300)}` : '';
+    throw new Error(`Meta Graph API request failed${code}${message}`);
+  }
   return body;
 }
 

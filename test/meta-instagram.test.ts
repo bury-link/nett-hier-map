@@ -46,3 +46,10 @@ test('publishing creates a media container then publishes it with a public HTTPS
 test('publishing rejects non-public image URLs before contacting Meta', async () => {
   await assert.rejects(() => publishInstagramImage({ instagramAccountId: 'ig-1', accessToken: 'page-token', imageUrl: 'http://localhost/uploads/photo.jpg', caption: 'Nett hier.' }, async () => new Response('{}')), /public HTTPS/);
 });
+
+test('Meta Graph errors retain a safe API code for administrator diagnostics', async () => {
+  await assert.rejects(
+    () => getInstagramConnection('token', async () => new Response(JSON.stringify({ error: { message: 'The access token is invalid.', code: 190 } }), { status: 400 })),
+    /Meta Graph API request failed \(code 190\): The access token is invalid\./,
+  );
+});

@@ -13,6 +13,7 @@ test('admin OAuth callback validates signed state and stores the server-side tok
   assert.match(server, /verifyOAuthState\(request\.query\.state, adminSessionSecret, nonce\)/);
   assert.match(server, /exchangeAuthorizationCode\(request\.query\.code, metaAppId, metaAppSecret/);
   assert.match(server, /await saveInstagramConnection\(database, \{ \.\.\.connection, accessToken: encryptToken\(connection\.accessToken, metaTokenEncryptionSecret!\) \}\)/);
+  assert.match(server, /console\.error\('Meta OAuth connection failed:'/);
 });
 
 test('admin interface connects Meta and moderates opted-in publications', () => {

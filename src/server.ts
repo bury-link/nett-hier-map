@@ -199,7 +199,10 @@ app.get('/api/admin/meta/callback', async (request, response) => {
     const connection = await getInstagramConnection(userAccessToken);
     await saveInstagramConnection(database, { ...connection, accessToken: encryptToken(connection.accessToken, metaTokenEncryptionSecret!) });
     return response.redirect('/admin?meta=connected');
-  } catch { return response.redirect('/admin?meta=failed'); }
+  } catch (error) {
+    console.error('Meta OAuth connection failed:', error instanceof Error ? error.message : 'Unknown Meta OAuth error');
+    return response.redirect('/admin?meta=failed');
+  }
 });
 app.get('/api/admin/meta/status', requireAdmin, async (_request, response, next) => {
   try { const connection = await getSavedInstagramConnection(database); return response.json({ connected: Boolean(connection), username: connection?.username ?? null }); } catch (error) { next(error); }
