@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, listSightingsMissingLocationDescriptions, resolveReport, saveInstagramConnection, setInstagramPublicationStatus, setLocationDescription, setSightingStatus } from './database.js';
+import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listInstagramPublicationsMissingCaptions, listOpenReports, listSightings, listSightingsMissingLocationDescriptions, resolveReport, saveInstagramConnection, setInstagramCaptionIfEmpty, setInstagramPublicationStatus, setLocationDescription, setSightingStatus } from './database.js';
 import { createAdminSession, parseCookie, verifyAdminCredentials, verifyAdminSession } from './lib/admin-auth.js';
 import { readEmbeddedCoordinates } from './lib/image-metadata.js';
 import { validateSubmissionWithSource } from './lib/submission.js';
@@ -14,6 +14,7 @@ import { verifyMetaSignedRequest } from './lib/meta-data-deletion.js';
 import { buildMetaAuthorizationUrl, createOAuthState, exchangeAuthorizationCode, getInstagramConnection, publishInstagramImage, verifyOAuthState } from './lib/meta-instagram.js';
 import { decryptToken, encryptToken } from './lib/token-vault.js';
 import { requirePublicHttpsBaseUrl } from './lib/public-url.js';
+import { createInstagramCaption } from './lib/instagram-caption.js';
 import { resolveLocationDescription } from './lib/location-description.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -41,7 +42,10 @@ const pause = (milliseconds: number): Promise<void> => new Promise((resolve) => 
 async function queueLocationDescription(id: string, latitude: number, longitude: number): Promise<void> {
   try {
     const locationDescription = await resolveLocationDescription(latitude, longitude);
-    if (locationDescription) await setLocationDescription(database, id, locationDescription.value, locationDescription.interpreted, locationDescription.promptVersion);
+    if (locationDescription) {
+      await setLocationDescription(database, id, locationDescription.value, locationDescription.interpreted, locationDescription.promptVersion);
+      await setInstagramCaptionIfEmpty(database, id, await createInstagramCaption(locationDescription.value));
+    }
   } catch (error) {
     console.warn(`Location description lookup failed for sighting ${id}:`, error instanceof Error ? error.message : 'Unknown error');
   }
@@ -50,6 +54,13 @@ async function backfillMissingLocationDescriptions(): Promise<void> {
   const sightings = await listSightingsMissingLocationDescriptions(database);
   for (const sighting of sightings) {
     await queueLocationDescription(sighting.id, sighting.latitude, sighting.longitude);
+    await pause(1_100);
+  }
+}
+async function backfillMissingInstagramCaptions(): Promise<void> {
+  const publications = await listInstagramPublicationsMissingCaptions(database);
+  for (const publication of publications) {
+    await setInstagramCaptionIfEmpty(database, publication.sightingId, await createInstagramCaption(publication.locationDescription));
     await pause(1_100);
   }
 }
@@ -240,8 +251,7 @@ app.post('/api/admin/sightings/:id/instagram/publish', requireAdmin, async (requ
     const connection = await getSavedInstagramConnection(database);
     if (!connection || !metaTokenEncryptionSecret) { await failInstagramPublication(database, sightingId, 'Instagram account is not connected.'); return response.status(409).json({ error: 'Instagram-Konto ist nicht verbunden.' }); }
     const imageUrl = new URL(`/uploads/${encodeURIComponent(publication.imageFilename)}`, publicBaseUrl).toString();
-    const detailUrl = new URL(`/fundort.html?id=${encodeURIComponent(publication.sightingId)}`, publicBaseUrl).toString();
-    const caption = publication.caption ?? `Nett hier.\n\nFundort auf der Karte:\n${detailUrl}`;
+    const caption = publication.caption ?? 'Nett hier.\n\nFund eingereicht auf nett-hier-map.de\nEntdecke weitere Fundorte über den Link in der Bio.\n\n#netthier #theländ #badenwürttemberg #stickersichtung';
     const mediaId = await publishInstagramImage({ instagramAccountId: connection.instagramAccountId, accessToken: decryptToken(connection.accessToken, metaTokenEncryptionSecret), imageUrl, caption });
     await completeInstagramPublication(database, sightingId, mediaId);
     return response.status(204).end();
@@ -292,4 +302,5 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
 
 await initialiseDatabase(database);
 void backfillMissingLocationDescriptions();
+void backfillMissingInstagramCaptions();
 app.listen(port, () => console.log(`Nett Hier Map running on port ${port}`));

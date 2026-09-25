@@ -1,5 +1,5 @@
 type PublicationStatus = 'pending' | 'approved' | 'rejected' | 'publishing' | 'published' | 'failed';
-type Sighting = { id: string; latitude: number; longitude: number; imageUrl: string; thumbnailUrl: string; createdAt: string; status: 'active' | 'disabled'; reportCount: number; instagramConsent: boolean; publicationStatus: PublicationStatus | null };
+type Sighting = { id: string; latitude: number; longitude: number; imageUrl: string; thumbnailUrl: string; createdAt: string; status: 'active' | 'disabled'; reportCount: number; instagramConsent: boolean; publicationStatus: PublicationStatus | null; instagramCaption: string | null };
 type Report = { id: string; sightingId: string; reason: string; createdAt: string };
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const loginView = byId<HTMLElement>('login-view'); const adminView = byId<HTMLElement>('admin-view'); const list = byId<HTMLElement>('admin-list'); const reportList = byId<HTMLElement>('report-list'); const loginStatus = byId<HTMLElement>('login-status'); const adminStatus = byId<HTMLElement>('admin-status'); const logout = byId<HTMLButtonElement>('logout'); const metaStatus = byId<HTMLElement>('meta-status');
@@ -10,7 +10,8 @@ function renderInstagramActions(sighting: Sighting, actions: HTMLElement): void 
   if (!sighting.instagramConsent || !sighting.publicationStatus) return;
   const state = document.createElement('p'); state.className = 'admin-state'; state.textContent = `Instagram: ${sighting.publicationStatus}`; actions.before(state);
   if (['pending', 'failed', 'approved'].includes(sighting.publicationStatus)) {
-    actions.append(action('Für Instagram freigeben', `/api/admin/sightings/${encodeURIComponent(sighting.id)}/instagram/approve`));
+    const caption = document.createElement('textarea'); caption.className = 'instagram-caption'; caption.rows = 7; caption.maxLength = 2200; caption.value = sighting.instagramCaption ?? ''; caption.placeholder = 'Instagram-Caption wird erstellt …'; caption.setAttribute('aria-label', 'Instagram-Caption'); actions.append(caption);
+    const approve = document.createElement('button'); approve.className = 'secondary-button'; approve.type = 'button'; approve.textContent = 'Für Instagram freigeben'; approve.addEventListener('click', async () => { await mutate(`/api/admin/sightings/${encodeURIComponent(sighting.id)}/instagram/approve`, { method: 'POST', body: JSON.stringify({ caption: caption.value }) }); }); actions.append(approve);
     actions.append(action('Instagram ablehnen', `/api/admin/sightings/${encodeURIComponent(sighting.id)}/instagram/reject`));
   }
   if (sighting.publicationStatus === 'approved') actions.append(action('Jetzt auf Instagram veröffentlichen', `/api/admin/sightings/${encodeURIComponent(sighting.id)}/instagram/publish`));
