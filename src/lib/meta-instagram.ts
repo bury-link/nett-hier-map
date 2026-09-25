@@ -5,6 +5,7 @@ const authorizationScopes = ['pages_show_list', 'pages_read_engagement', 'instag
 type Fetch = (url: URL, init?: RequestInit) => Promise<Response>;
 type OAuthStatePayload = { nonce: string; expiresAt: number };
 export type InstagramConnection = { pageId: string; instagramAccountId: string; username: string | null; accessToken: string };
+const pause = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function sign(payload: string, secret: string): string { return createHmac('sha256', secret).update(payload).digest('base64url'); }
 function equal(left: string, right: string): boolean { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b); }
@@ -73,6 +74,15 @@ export async function publishInstagramImage(input: { instagramAccountId: string;
   const containerUrl = new URL(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(input.instagramAccountId)}/media`);
   const container = await graphJson(containerUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ image_url: imageUrl.toString(), caption: input.caption, access_token: input.accessToken }).toString() }, fetcher);
   if (typeof container.id !== 'string') throw new Error('Meta did not create a media container.');
+  const statusUrl = new URL(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(container.id)}`);
+  statusUrl.search = new URLSearchParams({ fields: 'status_code', access_token: input.accessToken }).toString();
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const status = await graphJson(statusUrl, undefined, fetcher);
+    if (status.status_code === 'FINISHED') break;
+    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') throw new Error(`Meta image container processing failed with status ${status.status_code}.`);
+    if (attempt === 14) throw new Error('Meta image container did not finish processing in time.');
+    await pause(2_000);
+  }
   const publishUrl = new URL(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(input.instagramAccountId)}/media_publish`);
   const published = await graphJson(publishUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ creation_id: container.id, access_token: input.accessToken }).toString() }, fetcher);
   if (typeof published.id !== 'string') throw new Error('Meta did not publish the media container.');

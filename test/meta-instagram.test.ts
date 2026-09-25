@@ -39,11 +39,29 @@ test('publishing creates a media container then publishes it with a public HTTPS
   const requests: Array<{ url: string; body: string }> = [];
   const result = await publishInstagramImage({ instagramAccountId: 'ig-1', accessToken: 'page-token', imageUrl: 'https://nett-hier-map.de/uploads/photo.jpg', caption: 'Nett hier.' }, async (url, init) => {
     requests.push({ url: url.toString(), body: String(init?.body) });
-    return new Response(JSON.stringify(requests.length === 1 ? { id: 'container-1' } : { id: 'media-1' }), { status: 200 });
+    if (requests.length === 1) return new Response(JSON.stringify({ id: 'container-1' }), { status: 200 });
+    if (requests.length === 2) return new Response(JSON.stringify({ status_code: 'FINISHED' }), { status: 200 });
+    return new Response(JSON.stringify({ id: 'media-1' }), { status: 200 });
   });
   assert.equal(result, 'media-1');
   assert.match(requests[0]!.body, /image_url=https%3A%2F%2Fnett-hier-map.de%2Fuploads%2Fphoto.jpg/);
-  assert.match(requests[1]!.body, /creation_id=container-1/);
+  assert.match(requests[2]!.body, /creation_id=container-1/);
+});
+
+test('publishing waits for Meta to finish processing its image container', async () => {
+  const requests: Array<{ url: string; body: string }> = [];
+  const result = await publishInstagramImage(
+    { instagramAccountId: 'ig-1', accessToken: 'page-token', imageUrl: 'https://nett-hier-map.de/uploads/photo.jpg', caption: 'Nett hier.' },
+    async (url, init) => {
+      requests.push({ url: url.toString(), body: String(init?.body) });
+      if (requests.length === 1) return new Response(JSON.stringify({ id: 'container-1' }), { status: 200 });
+      if (requests.length === 2) return new Response(JSON.stringify({ status_code: 'FINISHED' }), { status: 200 });
+      return new Response(JSON.stringify({ id: 'media-1' }), { status: 200 });
+    },
+  );
+  assert.equal(result, 'media-1');
+  assert.match(requests[1]!.url, /\/container-1\?fields=status_code/);
+  assert.match(requests[2]!.url, /\/media_publish/);
 });
 
 test('publishing rejects non-public image URLs before contacting Meta', async () => {
