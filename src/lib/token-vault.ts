@@ -1,0 +1,5 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+
+function key(secret: string): Buffer { if (!secret) throw new Error('Token encryption secret is not configured.'); return createHash('sha256').update(secret).digest(); }
+export function encryptToken(token: string, secret: string): string { const nonce = randomBytes(12); const cipher = createCipheriv('aes-256-gcm', key(secret), nonce); const ciphertext = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]); return `${nonce.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${ciphertext.toString('base64url')}`; }
+export function decryptToken(value: string, secret: string): string { const [nonce, tag, ciphertext, extra] = value.split('.'); if (!nonce || !tag || !ciphertext || extra) throw new Error('Stored token is invalid.'); const decipher = createDecipheriv('aes-256-gcm', key(secret), Buffer.from(nonce, 'base64url')); decipher.setAuthTag(Buffer.from(tag, 'base64url')); return Buffer.concat([decipher.update(Buffer.from(ciphertext, 'base64url')), decipher.final()]).toString('utf8'); }

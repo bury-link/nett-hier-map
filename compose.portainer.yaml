@@ -1,6 +1,6 @@
 services:
   app:
-    image: bury-link/nett-hier-map:20260922-24
+    image: bury-link/nett-hier-map:20260925-4
     container_name: nett-hier-map
     restart: unless-stopped
     environment:
@@ -12,6 +12,10 @@ services:
       NETTHIER_ADMIN_USERNAME: ${NETTHIER_ADMIN_USERNAME:?set NETTHIER_ADMIN_USERNAME}
       NETTHIER_ADMIN_PASSWORD: ${NETTHIER_ADMIN_PASSWORD:?set NETTHIER_ADMIN_PASSWORD}
       NETTHIER_SESSION_SECRET: ${NETTHIER_SESSION_SECRET:?set NETTHIER_SESSION_SECRET}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL}
+      META_APP_ID: ${META_APP_ID:?set META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET:?set META_APP_SECRET}
+      META_TOKEN_ENCRYPTION_SECRET: ${META_TOKEN_ENCRYPTION_SECRET:?set META_TOKEN_ENCRYPTION_SECRET}
     ports:
       - "8091:3000"
     volumes:
@@ -42,6 +46,66 @@ services:
       timeout: 5s
       retries: 10
 
+  backup:
+    image: postgres:16-alpine
+    container_name: nett-hier-map-backup
+    restart: unless-stopped
+    user: "0:0"
+    environment:
+      PGHOST: db
+      PGDATABASE: netthier
+      PGUSER: netthier
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - sightings_uploads_v2:/source/uploads:ro
+      - sightings_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        while true; do
+          timestamp="$$(date -u +%Y%m%dT%H%M%SZ)"
+          pg_dump --format=custom --file="/backups/database-$${timestamp}.dump.partial"
+          mv "/backups/database-$${timestamp}.dump.partial" "/backups/database-$${timestamp}.dump"
+          tar -C /source/uploads -czf "/backups/uploads-$${timestamp}.tar.gz.partial" .
+          mv "/backups/uploads-$${timestamp}.tar.gz.partial" "/backups/uploads-$${timestamp}.tar.gz"
+          find /backups -type f -mtime +30 -delete
+          sleep 21600
+        done
+
+  offsite-backup:
+    image: rclone/rclone:1.75.1
+    container_name: nett-hier-map-offsite-backup
+    restart: unless-stopped
+    environment:
+      NEXTCLOUD_WEBDAV_URL: ${NEXTCLOUD_WEBDAV_URL:?set NEXTCLOUD_WEBDAV_URL}
+      NEXTCLOUD_USERNAME: ${NEXTCLOUD_USERNAME:?set NEXTCLOUD_USERNAME}
+      NEXTCLOUD_APP_PASSWORD: ${NEXTCLOUD_APP_PASSWORD:?set NEXTCLOUD_APP_PASSWORD}
+    volumes:
+      - sightings_backups:/source:ro
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        rclone config create nextcloud webdav \
+          url "$${NEXTCLOUD_WEBDAV_URL}" \
+          vendor nextcloud \
+          user "$${NEXTCLOUD_USERNAME}" \
+          pass "$$(rclone obscure "$${NEXTCLOUD_APP_PASSWORD}")"
+        while true; do
+          rclone copy /source 'nextcloud:Nett Hier Map/Backups' \
+            --include '*.dump' \
+            --include '*.tar.gz' \
+            --transfers 1
+          rclone delete 'nextcloud:Nett Hier Map/Backups' --min-age 30d
+          sleep 300
+        done
+
 volumes:
   sightings_db:
   sightings_uploads_v2:
+  sightings_backups:

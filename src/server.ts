@@ -1,15 +1,19 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { createDatabase, createReport, createSighting, deleteSighting, findActiveUpload, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, resolveReport, setSightingStatus } from './database.js';
+import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, resolveReport, saveInstagramConnection, setInstagramPublicationStatus, setSightingStatus } from './database.js';
 import { createAdminSession, parseCookie, verifyAdminCredentials, verifyAdminSession } from './lib/admin-auth.js';
 import { readEmbeddedCoordinates } from './lib/image-metadata.js';
 import { validateSubmissionWithSource } from './lib/submission.js';
 import { createThumbnail, normalizeUploadImage } from './lib/thumbnail.js';
 import { createUploadRateLimiter } from './lib/upload-rate-limit.js';
+import { verifyMetaSignedRequest } from './lib/meta-data-deletion.js';
+import { buildMetaAuthorizationUrl, createOAuthState, exchangeAuthorizationCode, getInstagramConnection, publishInstagramImage, verifyOAuthState } from './lib/meta-instagram.js';
+import { decryptToken, encryptToken } from './lib/token-vault.js';
+import { requirePublicHttpsBaseUrl } from './lib/public-url.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://netthier:***@localhost:5432/netthier';
@@ -21,7 +25,13 @@ const friendlyCaptchaSiteKey = process.env.FRIENDLYCAPTCHA_SITE_KEY ?? 'FCMS82UL
 const adminUsername = process.env.NETTHIER_ADMIN_USERNAME;
 const adminPassword = process.env.NETTHIER_ADMIN_PASSWORD;
 const adminSessionSecret = process.env.NETTHIER_SESSION_SECRET;
+const metaAppId = process.env.META_APP_ID;
+const metaAppSecret = process.env.META_APP_SECRET;
+const metaTokenEncryptionSecret = process.env.META_TOKEN_ENCRYPTION_SECRET;
+const publicBaseUrl = requirePublicHttpsBaseUrl(process.env.PUBLIC_BASE_URL ?? 'https://nett-hier-map.de');
+const metaOAuthRedirectUri = `${publicBaseUrl}/api/admin/meta/callback`;
 const sessionCookieName = 'netthier_admin_session';
+const metaOAuthCookieName = 'netthier_meta_oauth_nonce';
 const uploadRateLimiter = createUploadRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
 const loginRateLimiter = createUploadRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
 const reportRateLimiter = createUploadRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
@@ -86,6 +96,13 @@ app.get('/api/health', async (_request, response) => {
   response.json({ status: 'ok' });
 });
 
+app.post('/api/meta/data-deletion', (request, response) => {
+  const payload = verifyMetaSignedRequest(request.body?.signed_request, metaAppSecret);
+  if (!payload) return response.status(400).json({ error: 'Ungültige Meta-Löschanfrage.' });
+  const confirmationCode = randomUUID().replaceAll('-', '');
+  return response.json({ url: `https://nett-hier-map.de/datenloeschung.html?confirmation_code=${confirmationCode}`, confirmation_code: confirmationCode });
+});
+
 app.get('/uploads/:filename', async (request, response, next) => {
   try {
     const filename = String(request.params.filename);
@@ -124,7 +141,9 @@ app.post('/api/sightings', limitUpload, upload.single('photo'), async (request, 
     await writeFile(uploadPath(filename), normalizedImage);
     await createThumbnail(uploadPath(filename), uploadPath(thumbnailFilename));
     const id = randomUUID();
-    await createSighting(database, { id, ...coordinates, imageFilename: filename, thumbnailFilename });
+    const instagramConsent = request.body.instagramConsent === 'yes';
+    await createSighting(database, { id, ...coordinates, imageFilename: filename, thumbnailFilename, instagramConsent });
+    if (instagramConsent) await createInstagramPublication(database, id);
     response.status(201).json({ id, ...coordinates, imageUrl: `/uploads/${filename}`, thumbnailUrl: `/uploads/${thumbnailFilename}` });
   } catch (error) {
     for (const generatedFile of [filename, thumbnailFilename]) if (generatedFile && existsSync(uploadPath(generatedFile))) rmSync(uploadPath(generatedFile));
@@ -163,6 +182,52 @@ app.post('/api/admin/logout', requireAdmin, (_request, response) => {
   response.status(204).end();
 });
 app.get('/api/admin/session', requireAdmin, (_request, response) => response.json({ authenticated: true, username: adminUsername }));
+app.get('/api/admin/meta/connect', requireAdmin, (_request, response) => {
+  if (!metaAppId || !metaAppSecret || !adminSessionSecret || !metaTokenEncryptionSecret) return response.status(503).json({ error: 'Instagram-Verbindung ist nicht eingerichtet.' });
+  const nonce = randomBytes(32).toString('base64url');
+  const state = createOAuthState(adminSessionSecret, nonce);
+  response.cookie(metaOAuthCookieName, nonce, { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/admin/meta/callback', maxAge: 10 * 60_000 });
+  return response.redirect(302, buildMetaAuthorizationUrl({ appId: metaAppId, redirectUri: metaOAuthRedirectUri, state }));
+});
+app.get('/api/admin/meta/callback', async (request, response) => {
+  const nonce = parseCookie(request.headers.cookie, metaOAuthCookieName);
+  response.clearCookie(metaOAuthCookieName, { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/admin/meta/callback' });
+  if (!verifyOAuthState(request.query.state, adminSessionSecret, nonce) || typeof request.query.code !== 'string' || request.query.error) return response.redirect('/admin?meta=failed');
+  if (!metaAppId || !metaAppSecret || !metaTokenEncryptionSecret) return response.redirect('/admin?meta=failed');
+  try {
+    const userAccessToken = await exchangeAuthorizationCode(request.query.code, metaAppId, metaAppSecret, metaOAuthRedirectUri);
+    const connection = await getInstagramConnection(userAccessToken);
+    await saveInstagramConnection(database, { ...connection, accessToken: encryptToken(connection.accessToken, metaTokenEncryptionSecret!) });
+    return response.redirect('/admin?meta=connected');
+  } catch { return response.redirect('/admin?meta=failed'); }
+});
+app.get('/api/admin/meta/status', requireAdmin, async (_request, response, next) => {
+  try { const connection = await getSavedInstagramConnection(database); return response.json({ connected: Boolean(connection), username: connection?.username ?? null }); } catch (error) { next(error); }
+});
+app.post('/api/admin/sightings/:id/instagram/approve', requireAdmin, async (request, response, next) => {
+  try { if (!await setInstagramPublicationStatus(database, String(request.params.id), 'approved', typeof request.body?.caption === 'string' ? request.body.caption.trim().slice(0, 2_200) : null)) return response.sendStatus(404); return response.status(204).end(); } catch (error) { next(error); }
+});
+app.post('/api/admin/sightings/:id/instagram/reject', requireAdmin, async (request, response, next) => {
+  try { if (!await setInstagramPublicationStatus(database, String(request.params.id), 'rejected')) return response.sendStatus(404); return response.status(204).end(); } catch (error) { next(error); }
+});
+app.post('/api/admin/sightings/:id/instagram/publish', requireAdmin, async (request, response, next) => {
+  const sightingId = String(request.params.id);
+  try {
+    const publication = await claimInstagramPublication(database, sightingId);
+    if (!publication) return response.status(409).json({ error: 'Diese Sichtung ist nicht zur Veröffentlichung freigegeben.' });
+    const connection = await getSavedInstagramConnection(database);
+    if (!connection || !metaTokenEncryptionSecret) { await failInstagramPublication(database, sightingId, 'Instagram account is not connected.'); return response.status(409).json({ error: 'Instagram-Konto ist nicht verbunden.' }); }
+    const imageUrl = new URL(`/uploads/${encodeURIComponent(publication.imageFilename)}`, publicBaseUrl).toString();
+    const detailUrl = new URL(`/fundort.html?id=${encodeURIComponent(publication.sightingId)}`, publicBaseUrl).toString();
+    const caption = publication.caption ?? `Nett hier.\n\nFundort auf der Karte:\n${detailUrl}`;
+    const mediaId = await publishInstagramImage({ instagramAccountId: connection.instagramAccountId, accessToken: decryptToken(connection.accessToken, metaTokenEncryptionSecret), imageUrl, caption });
+    await completeInstagramPublication(database, sightingId, mediaId);
+    return response.status(204).end();
+  } catch (error) {
+    await failInstagramPublication(database, sightingId, error instanceof Error ? error.message : 'Meta publication failed.');
+    next(error);
+  }
+});
 app.get('/api/admin/sightings', requireAdmin, async (_request, response, next) => {
   try { response.json({ sightings: await listAdminSightings(database) }); } catch (error) { next(error); }
 });
