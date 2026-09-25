@@ -6,7 +6,8 @@ export type ReverseGeocodeResult = {
 };
 
 type FetchImplementation = (input: string | URL, init?: RequestInit) => Promise<Response>;
-const locationModel = 'google/gemini-2.5-flash-lite';
+const locationModel = 'openai/gpt-5.6-luna';
+export const locationDescriptionPromptVersion = '2026-09-25-v3';
 
 const settlementKeys = ['city', 'town', 'village', 'municipality', 'county'] as const;
 const featureLabels: Record<string, { preposition: string; label: string }> = {
@@ -56,7 +57,7 @@ export function formatLocationDescription(result: ReverseGeocodeResult): string 
 function validLlmDescription(value: unknown, result: ReverseGeocodeResult): value is string {
   if (typeof value !== 'string') return false;
   const normalized = value.trim();
-  if (normalized.length < 8 || normalized.length > 180 || /[\r\n]/.test(normalized) || !/\p{L}/u.test(normalized)) return false;
+  if (normalized.length < 8 || normalized.length > 160 || /[\r\n]/.test(normalized) || !/\p{L}/u.test(normalized)) return false;
   const address = result.address ?? {};
   const evidence = [settlement(address), address.country?.trim(), result.name?.trim(), result.name ? airportCity(result.name) : null]
     .filter((item): item is string => Boolean(item && item.length >= 3))
@@ -72,11 +73,11 @@ export async function interpretLocationDescription(result: ReverseGeocodeResult,
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://nett-hier-map.de', 'X-Title': 'Nett Hier Map' },
     body: JSON.stringify({
       model: locationModel,
-      temperature: 0.35,
+      temperature: 0.15,
       max_tokens: 70,
       messages: [{
         role: 'system',
-        content: 'Formuliere eine kurze, lebendige deutsche Ortsbeschreibung für ein Foto. Nutze ausschließlich auf Basis der bereitgestellten Daten. Erfinde keine Sehenswürdigkeiten, Aktivitäten, Menschen oder Details. Gib genau einen neutralen Satz ohne Anführungszeichen aus, maximal 180 Zeichen.',
+        content: 'Formuliere genau eine kurze, natürliche deutsche Ortszeile für ein Foto. Nutze ausschließlich auf Basis der bereitgestellten Daten. Erfinde keine Sehenswürdigkeiten, Aktivitäten, Menschen oder Details. Gib keine Einleitung, Erklärung oder Anführungszeichen aus. Priorisiere: benannte Straße oder konkretes Objekt, verständlicher Ort, Land. Schreibe sachlich und knapp, maximal 160 Zeichen. Verwende keine Füllphrasen wie „befindet sich“, „steht“ oder „ist ein“ als eigenständigen Satzteil. Baue Informationen direkt ein: „Busshuttle-Halt am Flughafen Zadar in Kroatien“, nicht „Der Busshuttle-Halt am Flughafen Zadar befindet sich in Zemunik Donji in der Gespanschaft Zadar, Kroatien.“ Bei Straßen: „Zeblasstrasse in Samnaun, Graubünden, in der Schweiz“, nicht „… ist ein Weg in der Schweiz.“ Nutze einen erklärenden Einschub nur, wenn er einen echten Mehrwert hat: „Die Nibbevegen, eine unklassifizierte Straße in Stranda, Möre und Romsdal, Norwegen.“ Wenn ein Straßentyp vorliegt, nenne ihn in diesem Einschub. Bei einem nummerierten Wegweiser: „Wegweiser mit der Bezeichnung 263_01 bei Porto Azzurro in der Toskana.“ Keine überflüssigen Verwaltungsregionen, Stadtteile oder wiederholten Ortsnamen. Ohne Mehrwert einer Straßennennung: nur Straße, Ort und Land, zum Beispiel „Montée de Clausen in Clausen, Luxemburg.“',
       }, {
         role: 'user',
         content: JSON.stringify(result),
@@ -90,7 +91,7 @@ export async function interpretLocationDescription(result: ReverseGeocodeResult,
   return validLlmDescription(description, result) ? description.trim() : null;
 }
 
-export type LocationDescription = { value: string; interpreted: boolean };
+export type LocationDescription = { value: string; interpreted: boolean; promptVersion: string };
 
 export async function resolveLocationDescription(latitude: number, longitude: number, baseUrl = 'https://nominatim.openstreetmap.org'): Promise<LocationDescription | null> {
   const url = new URL('/reverse', baseUrl);
@@ -107,7 +108,7 @@ export async function resolveLocationDescription(latitude: number, longitude: nu
   if (!response.ok) return null;
   const result = await response.json() as ReverseGeocodeResult;
   const interpreted = await interpretLocationDescription(result);
-  if (interpreted) return { value: interpreted, interpreted: true };
+  if (interpreted) return { value: interpreted, interpreted: true, promptVersion: locationDescriptionPromptVersion };
   const fallback = formatLocationDescription(result);
-  return fallback ? { value: fallback, interpreted: false } : null;
+  return fallback ? { value: fallback, interpreted: false, promptVersion: locationDescriptionPromptVersion } : null;
 }

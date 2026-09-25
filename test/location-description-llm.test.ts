@@ -14,8 +14,12 @@ test('asks the LLM for a concise German location phrase grounded in reverse-geoc
   });
 
   assert.equal(description, 'Am Flughafen nahe Zadar, Kroatien');
-  assert.equal(request?.model, 'google/gemini-2.5-flash-lite');
-  assert.match(request?.messages?.[0]?.content ?? '', /ausschließlich auf Basis der bereitgestellten Daten/);
+  assert.equal(request?.model, 'openai/gpt-5.6-luna');
+  const prompt = request?.messages?.[0]?.content ?? '';
+  assert.match(prompt, /ausschließlich auf Basis der bereitgestellten Daten/);
+  assert.match(prompt, /keine Füllphrasen wie „befindet sich“, „steht“ oder „ist ein“/);
+  assert.match(prompt, /Keine überflüssigen Verwaltungsregionen/);
+  assert.match(prompt, /Ohne Mehrwert einer Straßennennung: nur Straße, Ort und Land/);
 });
 
 test('rejects LLM output that is too long or lacks a location', async () => {
