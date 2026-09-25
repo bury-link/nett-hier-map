@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, resolveReport, saveInstagramConnection, setInstagramPublicationStatus, setSightingStatus } from './database.js';
+import { claimInstagramPublication, completeInstagramPublication, createDatabase, createInstagramPublication, createReport, createSighting, deleteSighting, failInstagramPublication, findActiveUpload, getSavedInstagramConnection, initialiseDatabase, listAdminSightings, listOpenReports, listSightings, listSightingsMissingLocationDescriptions, resolveReport, saveInstagramConnection, setInstagramPublicationStatus, setLocationDescription, setSightingStatus } from './database.js';
 import { createAdminSession, parseCookie, verifyAdminCredentials, verifyAdminSession } from './lib/admin-auth.js';
 import { readEmbeddedCoordinates } from './lib/image-metadata.js';
 import { validateSubmissionWithSource } from './lib/submission.js';
@@ -14,6 +14,7 @@ import { verifyMetaSignedRequest } from './lib/meta-data-deletion.js';
 import { buildMetaAuthorizationUrl, createOAuthState, exchangeAuthorizationCode, getInstagramConnection, publishInstagramImage, verifyOAuthState } from './lib/meta-instagram.js';
 import { decryptToken, encryptToken } from './lib/token-vault.js';
 import { requirePublicHttpsBaseUrl } from './lib/public-url.js';
+import { resolveLocationDescription } from './lib/location-description.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://netthier:***@localhost:5432/netthier';
@@ -35,6 +36,23 @@ const metaOAuthCookieName = 'netthier_meta_oauth_nonce';
 const uploadRateLimiter = createUploadRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
 const loginRateLimiter = createUploadRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
 const reportRateLimiter = createUploadRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
+
+const pause = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
+async function queueLocationDescription(id: string, latitude: number, longitude: number): Promise<void> {
+  try {
+    const locationDescription = await resolveLocationDescription(latitude, longitude);
+    if (locationDescription) await setLocationDescription(database, id, locationDescription);
+  } catch (error) {
+    console.warn(`Location description lookup failed for sighting ${id}:`, error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+async function backfillMissingLocationDescriptions(): Promise<void> {
+  const sightings = await listSightingsMissingLocationDescriptions(database);
+  for (const sighting of sightings) {
+    await queueLocationDescription(sighting.id, sighting.latitude, sighting.longitude);
+    await pause(1_100);
+  }
+}
 
 for (const directory of [uploadDirectory, temporaryDirectory]) {
   if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
@@ -144,6 +162,7 @@ app.post('/api/sightings', limitUpload, upload.single('photo'), async (request, 
     const instagramConsent = request.body.instagramConsent === 'yes';
     await createSighting(database, { id, ...coordinates, imageFilename: filename, thumbnailFilename, instagramConsent });
     if (instagramConsent) await createInstagramPublication(database, id);
+    void queueLocationDescription(id, coordinates.latitude, coordinates.longitude);
     response.status(201).json({ id, ...coordinates, imageUrl: `/uploads/${filename}`, thumbnailUrl: `/uploads/${thumbnailFilename}` });
   } catch (error) {
     for (const generatedFile of [filename, thumbnailFilename]) if (generatedFile && existsSync(uploadPath(generatedFile))) rmSync(uploadPath(generatedFile));
@@ -272,4 +291,5 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
 });
 
 await initialiseDatabase(database);
+void backfillMissingLocationDescriptions();
 app.listen(port, () => console.log(`Nett Hier Map running on port ${port}`));

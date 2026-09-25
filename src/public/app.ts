@@ -9,6 +9,7 @@ type Sighting = {
   longitude: number;
   imageUrl: string;
   thumbnailUrl?: string;
+  locationDescription?: string | null;
   createdAt: string;
 };
 
@@ -88,7 +89,8 @@ function safe(value: string): string {
 
 function popupFor(sighting: Sighting): string {
   const detailUrl = `/fundort.html?id=${encodeURIComponent(String(sighting.id))}`;
-  return `<article class="map-popup"><img src="${safe(sighting.thumbnailUrl ?? sighting.imageUrl)}" alt="Foto eines Fundorts" /><time datetime="${safe(sighting.createdAt)}">${safe(formatDate(sighting.createdAt))}</time> <a href="${detailUrl}">Mehr anzeigen <span aria-hidden="true">→</span></a></article>`;
+  const location = sighting.locationDescription ? `<p>${safe(sighting.locationDescription)}</p>` : '';
+  return `<article class="map-popup"><img src="${safe(sighting.thumbnailUrl ?? sighting.imageUrl)}" alt="Foto eines Fundorts" />${location}<time datetime="${safe(sighting.createdAt)}">${safe(formatDate(sighting.createdAt))}</time> <a href="${detailUrl}">Mehr anzeigen <span aria-hidden="true">→</span></a></article>`;
 }
 
 function updateCount(total: number): void {
@@ -109,10 +111,12 @@ function addSightingCard(sighting: Sighting, marker: MapMarker): void {
   const button = fragment.querySelector<HTMLButtonElement>('button')!;
   const image = fragment.querySelector<HTMLImageElement>('img')!;
   const time = fragment.querySelector<HTMLTimeElement>('time')!;
+  const location = fragment.querySelector<HTMLElement>('.card-location')!;
   image.src = sighting.thumbnailUrl ?? sighting.imageUrl;
   image.alt = `Fundort vom ${formatDate(sighting.createdAt)}`;
   time.dateTime = sighting.createdAt;
   time.textContent = formatDate(sighting.createdAt);
+  location.textContent = sighting.locationDescription ?? 'Ortsbeschreibung wird ermittelt …';
   button.addEventListener('click', () => {
     map.setView([sighting.latitude, sighting.longitude], Math.max(map.getZoom(), 15), { animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
     marker.openPopup();
