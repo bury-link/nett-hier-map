@@ -51,13 +51,20 @@ export async function exchangeAuthorizationCode(code: string, appId: string, app
 }
 
 export async function getInstagramConnection(userAccessToken: string, fetcher: Fetch = (url, init) => fetch(url, init)): Promise<InstagramConnection> {
-  const url = new URL(`https://graph.facebook.com/${graphVersion}/me/accounts`);
-  url.search = new URLSearchParams({ fields: 'id,access_token,instagram_business_account{id,username}', access_token: userAccessToken }).toString();
-  const result = await graphJson(url, undefined, fetcher);
-  const page = Array.isArray(result.data) ? result.data.find((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && typeof (entry as Record<string, unknown>).id === 'string' && typeof (entry as Record<string, unknown>).access_token === 'string' && typeof ((entry as Record<string, unknown>).instagram_business_account as Record<string, unknown> | undefined)?.id === 'string') : undefined;
-  if (!page) throw new Error('No Facebook Page with a linked Instagram professional account was found.');
-  const instagram = page.instagram_business_account as Record<string, unknown>;
-  return { pageId: page.id as string, instagramAccountId: instagram.id as string, username: typeof instagram.username === 'string' ? instagram.username : null, accessToken: page.access_token as string };
+  const pagesUrl = new URL(`https://graph.facebook.com/${graphVersion}/me/accounts`);
+  pagesUrl.search = new URLSearchParams({ fields: 'id,access_token', access_token: userAccessToken }).toString();
+  const pagesResult = await graphJson(pagesUrl, undefined, fetcher);
+  const pages = Array.isArray(pagesResult.data) ? pagesResult.data.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && typeof (entry as Record<string, unknown>).id === 'string' && typeof (entry as Record<string, unknown>).access_token === 'string') : [];
+
+  for (const page of pages) {
+    const pageUrl = new URL(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(page.id as string)}`);
+    pageUrl.search = new URLSearchParams({ fields: 'instagram_business_account{id,username}', access_token: page.access_token as string }).toString();
+    const pageResult = await graphJson(pageUrl, undefined, fetcher);
+    const instagram = pageResult.instagram_business_account as Record<string, unknown> | undefined;
+    if (typeof instagram?.id === 'string') return { pageId: page.id as string, instagramAccountId: instagram.id, username: typeof instagram.username === 'string' ? instagram.username : null, accessToken: page.access_token as string };
+  }
+
+  throw new Error('No Facebook Page with a linked Instagram professional account was found.');
 }
 
 export async function publishInstagramImage(input: { instagramAccountId: string; accessToken: string; imageUrl: string; caption: string }, fetcher: Fetch = (url, init) => fetch(url, init)): Promise<string> {

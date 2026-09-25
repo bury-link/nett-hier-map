@@ -22,14 +22,17 @@ test('Meta authorization URL uses the configured callback and least required Ins
   assert.deepEqual(url.searchParams.get('scope')?.split(',').sort(), ['instagram_basic', 'instagram_content_publish', 'pages_read_engagement', 'pages_show_list']);
 });
 
-test('connection discovery stores only the selected page token and Instagram account', async () => {
+test('connection discovery queries each managed Page for its linked Instagram account', async () => {
   const requests: string[] = [];
   const connection = await getInstagramConnection('short-lived-token', async (url) => {
     requests.push(url.toString());
-    return new Response(JSON.stringify({ data: [{ id: 'page-1', access_token: 'page-token', instagram_business_account: { id: 'ig-1', username: 'nett' } }] }), { status: 200 });
+    if (url.pathname.endsWith('/me/accounts')) return new Response(JSON.stringify({ data: [{ id: 'page-1', access_token: 'page-token' }] }), { status: 200 });
+    if (url.pathname.endsWith('/page-1')) return new Response(JSON.stringify({ id: 'page-1', instagram_business_account: { id: 'ig-1', username: 'nett' } }), { status: 200 });
+    throw new Error(`Unexpected request: ${url}`);
   });
   assert.deepEqual(connection, { pageId: 'page-1', instagramAccountId: 'ig-1', username: 'nett', accessToken: 'page-token' });
   assert.match(requests[0]!, /\/me\/accounts/);
+  assert.match(requests[1]!, /\/page-1/);
 });
 
 test('publishing creates a media container then publishes it with a public HTTPS image URL', async () => {
